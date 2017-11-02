@@ -1,3 +1,7 @@
+# Data files
+*.txt
+*.png
+
 # Prerequisites
 *.d
 
