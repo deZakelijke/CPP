@@ -19,6 +19,7 @@
 /* Add any functions you may need (like a worker) here. */
 
 // Hier moeten we iig de functie definieren die we aan elke thread meegeven.
+/*
 arguments *init_arguments(double* old, double* current, double* new_A, int begin_i, int end_i, int c){
     arguments* args = malloc(sizeof (arguments));
     args->old = old;
@@ -32,7 +33,7 @@ arguments *init_arguments(double* old, double* current, double* new_A, int begin
 }
 
 void free_arguments(arguments* args);
-
+*/
 // Nog een losse functie die een tijdstap doet.
 
 // Buffer swap functie? Alleen de pointers doorwisselen. XOR swap?
@@ -40,22 +41,31 @@ void free_arguments(arguments* args);
 
 void* simulation_step(void* args){
 
-   double* old = ((arguments *)args)->old;
-   double* current = ((arguments *)args)->current;
-   double* new_A = ((arguments*)args)->new_A;
-   int begin_i = ((arguments *)args)->begin_i;
-   int end_i = ((arguments *)args)->end_i;
-   float c = ((arguments *)args)->c;
+    double* old = ((arguments *)args)->old;
+    double* current = ((arguments *)args)->current;
+    double* new_A = ((arguments*)args)->new_A;
+    int begin_i = ((arguments *)args)->begin_i;
+    int end_i = ((arguments *)args)->end_i;
+    float c = ((arguments *)args)->c;
+    int t_max = ((arguments *)args)->t_max;
+    double* temp;
 
     /*
     new[begin:end] = 2 * current[begin:end] - old[begin:end] + 
                     c *(current[begin-1:end-1] - 2*current[begin:end] - 
                     current[begin+1:end+1]);
     */
-
-    for(int i = begin_i; i < end_i; i++){
-        new_A[i] = 2 * current[i] - old[i] + c *(current[i-1] - 2*current[i] - current[i+1]);
+    for (int t = 0 ; t < t_max; t++) {
+        for (int i = begin_i; i < end_i; i++) {
+            new_A[i] = 2 * current[i] - old[i] + c *(current[i-1] - 2*current[i] - current[i+1]);
+        }
+        
+        temp = old;
+        old = current;
+        current = new_A;
+        new_A = temp;
     }
+
     return NULL;
 }
 
@@ -75,41 +85,34 @@ double *simulate(const int i_max, const int t_max, const int num_threads,
         double *old_array, double *current_array, double *next_array)
 {
     float c = 0.15;
-    double* temp;
     pthread_t threads[num_threads];
     arguments args[num_threads];
 
-    for (int j = 0; j < t_max; j++){
 
-        for (int i = 0;  i< num_threads; i++){
-            args[i].old = old_array;
-            args[i].current = current_array;
-            args[i].new_A = next_array;
-            args[i].begin_i = i/num_threads;
-            args[i].end_i = (i+1)/num_threads;
-            args[i].c = c;
-        }
+    for (int i = 0;  i< num_threads; i++){
+        args[i].old = old_array;
+        args[i].current = current_array;
+        args[i].new_A = next_array;
+        args[i].begin_i = i/num_threads;
+        args[i].end_i = (i+1)/num_threads;
+        args[i].c = c;
+        args[i].t_max = t_max;
+    }
     
-        for (int i = 0; i < num_threads; i++){
-            pthread_create(&threads[i], NULL, simulation_step, &args[i]);
-        }
+    for (int i = 0; i < num_threads; i++){
+        pthread_create(&threads[i], NULL, simulation_step, &args[i]);
+    }
     
     
     
-        for (int i = 0; i < num_threads; i++){
-            pthread_join(threads[i], NULL);
-        }
+    for (int i = 0; i < num_threads; i++){
+        pthread_join(threads[i], NULL);
+    }
         /*
          * After each timestep, you should swap the buffers around. Watch out none
          * of the threads actually use the buffers at that time.
          */
-    
-        temp = old_array;
-        old_array = current_array;
-        current_array = next_array;
-        next_array = temp;
 
-    }
     /* You should return a pointer to the array with the final results. */
     return current_array;
 }
