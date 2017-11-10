@@ -1,5 +1,5 @@
 PROGNAME = sieve
-SRCFILES = sieve.c 
+SRCFILES = sieve.c timer.c
 
 CC = gcc
 WARNFLAGS = -Wall -Werror-implicit-function-declaration -Wshadow \
@@ -7,7 +7,7 @@ WARNFLAGS = -Wall -Werror-implicit-function-declaration -Wshadow \
 CFLAGS = -std=c99 -ggdb -O2 $(WARNFLAGS) -D_POSIX_C_SOURCE=200112
 LFLAGS = -lm -lrt -lpthread
 
-OBJFILES = sieve.o
+OBJFILES = timer.o sieve.o
 
 $(PROGNAME): $(OBJFILES)
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
