@@ -2,7 +2,11 @@ PROGNAME = assign1_2
 SRCFILES = assign1_2.c file.c timer.c simulate.c
 TARNAME = assign1_2.tgz
 
-RUNARGS = 1000 1000 1 # i_max t_max num_threads, increase this when testing on the DAS4!
+RUNARGS_1 = 1000000 100000 1 # i_max t_max num_threads, increase this when testing on the DAS4!
+RUNARGS_2 = 1000000 100000 2 # i_max t_max num_threads, increase this when testing on the DAS4!
+RUNARGS_4 = 1000000 100000 4 # i_max t_max num_threads, increase this when testing on the DAS4!
+RUNARGS_6 = 1000000 100000 6 # i_max t_max num_threads, increase this when testing on the DAS4!
+RUNARGS_8 = 1000000 100000 8 # i_max t_max num_threads, increase this when testing on the DAS4!
 
 IMAGEVIEW = display
 CC = gcc
@@ -25,8 +29,17 @@ $(PROGNAME): $(OBJFILES)
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-run: $(PROGNAME)
-	prun -v -np 1 $(PROGNAME) $(RUNARGS)
+run_1: $(PROGNAME)
+	prun -v -np 1 $(PROGNAME) $(RUNARGS_1)
+run_2: $(PROGNAME)
+	prun -v -np 1 $(PROGNAME) $(RUNARGS_2)
+run_4: $(PROGNAME)
+	prun -v -np 1 $(PROGNAME) $(RUNARGS_4)
+run_6: $(PROGNAME)
+	prun -v -np 1 $(PROGNAME) $(RUNARGS_6)
+run_8: $(PROGNAME)
+	prun -v -np 1 $(PROGNAME) $(RUNARGS_8)
+
 
 runlocal: $(PROGNAME)
 	./$(PROGNAME) $(RUNARGS)
