@@ -2,6 +2,10 @@
 *.txt
 *.png
 
+# Archives
+*.tar.gz
+*.zip
+
 # Prerequisites
 *.d
 
