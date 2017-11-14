@@ -1,6 +1,8 @@
 # Data files
 *.txt
 *.png
+*.gnp
+*.pdf
 
 # Archives
 *.tar.gz
