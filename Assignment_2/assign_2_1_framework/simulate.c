@@ -15,6 +15,41 @@
 
 /* Add any functions you may need (like a worker) here. */
 
+// Initializes a smaller part of the array for a process.
+double *init_arr(double *array, int i_max, int rank, int numtasks);
+
+// Calculates the next iteration in the simulation. 
+void update_array(double *prev, double *curr, double *next, int length);
+
+
+double *init_arr(double *array, int i_max, int rank, int numtasks){
+    int length, base;
+    if (rank <= i_max%numtasks) {
+        length = i_max/numtasks + 3;
+        base = ((i_max/numtasks)+rank) *rank;
+    } else {
+        length = i_max/numtasks + 2;
+        base = ((i_max/numtasks)+i_max%numtasks) * rank;
+    }
+    if (rank == 1 || rank == numtasks-1) {
+        length--;
+    }
+   
+    double *new_arr = malloc(sizeof (double) * length);
+    for (int i = 0; i < length; i++){
+        new_arr[i] = array[base+i];
+    }
+
+    return new_arr;
+}
+
+
+void update_array(double *prev, double *curr, double *next, int length){
+    for (int i = 1; i < length-1; i++) {
+        next[i] = 2*curr[i] - prev[i] + 0.5*( curr[i-1] - 
+                  2 * (curr[i] - curr[i+1]));
+    }
+}
 
 /*
  * Executes the entire simulation.
@@ -31,26 +66,59 @@ double *simulate(const int i_max, const int t_max, double *old_array,
         double *current_array, double *next_array)
 {
     // Variabelen initialiseren
-    int numtasks, rank, next, prev;
-    MPI_Status stat;              // Moet dit een array zijn?
+    int numtasks, rank, tag=1, length;
+    int next_add, prev_add, next_val, prev_val;
+    double *prev_l, *curr_l, *next_l;
+    MPI_Status stat;              
 
-    MPI_Init();                   // ?
+    MPI_Init(NULL, NULL);                   
     MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // Verschillende processen intialiseren
+    // Elk proces moet zijn eigen geheugen krijgen
+    // Verdeel de array en voeg padding toe
+
 
     // Master proces die de buffers swapt
     if (rank == 0) {
-
+        // every timestep, swap buffers
     } else {
+        prev_l = init_arr(old_array, i_max, rank, numtasks);
+        curr_l = init_arr(current_array, i_max, rank, numtasks);
+        next_l = init_arr(next_array, i_max, rank, numtasks);
 
-    // Taak voor elk proces definieren
-    // Communicatie na elke tijdstap
-    // Moet synchroon om de goede antwoorden te krijgen
-    // Alle communicatie blockende communicatie?
+        next_add = rank + 1;
+        prev_add = rank - 1;
+        // Taak voor elk proces definieren
 
+        for (int i = 0; i < t_max; i++) {
 
+            update_array(prev_l, curr_l, next_l, length);
+
+            // Communicatie na elke tijdstap
+            // Moet synchroon om de goede antwoorden te krijgen
+            // De oneven processen verezenden eerst
+            if (rank%2 == 0) {
+                next_val = next_l[length-1];
+                prev_val = next_l[0];
+                MPI_Send(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD);
+
+                MPI_Recv();
+                MPI_Send();
+                MPI_Recv();
+            } else {
+                MPI_Recv(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD, &stat);
+                MPI_Send();
+                MPI_Recv();
+                MPI_Send();
+            }
+
+        }
+        put_result(curr_l, current_array);
+        free(prev_l);
+        free(curr_l);
+        free(next_l);
     }
 
     
