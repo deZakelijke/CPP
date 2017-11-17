@@ -21,6 +21,9 @@ double *init_arr(double *array, int i_max, int rank, int numtasks);
 // Calculates the next iteration in the simulation. 
 void update_array(double *prev, double *curr, double *next, int length);
 
+// Puts the local array back in the original array at the end of the sequence.
+void put_result(double *mother_arr, double *child_arr, int base, int length);
+
 
 double *init_arr(double *array, int i_max, int rank, int numtasks){
     int length, base;
@@ -45,11 +48,19 @@ double *init_arr(double *array, int i_max, int rank, int numtasks){
 
 
 void update_array(double *prev, double *curr, double *next, int length){
-    for (int i = 1; i < length-1; i++) {
+    for (int i = 1; i < length-2; i++) {
         next[i] = 2*curr[i] - prev[i] + 0.5*( curr[i-1] - 
                   2 * (curr[i] - curr[i+1]));
     }
 }
+
+
+void put_result(double *mother_arr, double *child_arr, int base, int length){
+    for (int i = 1; i <length-2; i++) {
+        mother_arr[i+base] = child_arr[i];
+    }
+}
+
 
 /*
  * Executes the entire simulation.
@@ -95,16 +106,23 @@ double *simulate(const int i_max, const int t_max, double *old_array,
         for (int i = 0; i < t_max; i++) {
 
             update_array(prev_l, curr_l, next_l, length);
+            if (rank == 1) {
+                next_l[0] = 0;
+            }
+            if (rank == numtasks){
+                next_l[length-1] = 0;
+            }
 
             // Communicatie na elke tijdstap
             // Moet synchroon om de goede antwoorden te krijgen
             // De oneven processen verezenden eerst
             if (rank%2 == 0) {
                 next_val = next_l[length-1];
-                prev_val = next_l[0];
+                prev_val = next_l[1];
                 MPI_Send(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD);
+                MPI_Recv(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD, &stat);
+                next_l[0] = prev_val;
 
-                MPI_Recv();
                 MPI_Send();
                 MPI_Recv();
             } else {
@@ -115,7 +133,7 @@ double *simulate(const int i_max, const int t_max, double *old_array,
             }
 
         }
-        put_result(curr_l, current_array);
+        put_result(current_array, curr_l, base, length);
         free(prev_l);
         free(curr_l);
         free(next_l);
