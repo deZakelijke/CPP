@@ -15,29 +15,32 @@
 
 /* Add any functions you may need (like a worker) here. */
 
-// Initializes a smaller part of the array for a process.
-double *init_arr(double *array, int i_max, int rank, int numtasks);
-
-// Calculates the next iteration in the simulation. 
-void update_array(double *prev, double *curr, double *next, int length);
-
-// Puts the local array back in the original array at the end of the sequence.
-void put_result(double *mother_arr, double *child_arr, int base, int length);
-
-
-double *init_arr(double *array, int i_max, int rank, int numtasks){
-    int length, base;
-    if (rank <= i_max%numtasks) {
+int get_l(int i_max, int rank, int numtasks){
+    int length;
+    if (rank < i_max%numtasks) {
         length = i_max/numtasks + 3;
-        base = ((i_max/numtasks)+rank) *rank;
     } else {
         length = i_max/numtasks + 2;
-        base = ((i_max/numtasks)+i_max%numtasks) * rank;
     }
-    if (rank == 1 || rank == numtasks-1) {
+    if (rank == 0 || rank == numtasks-1) {
         length--;
     }
-   
+    return length;
+}
+
+
+int get_b(int i_max, int rank, int numtasks){
+    int base;
+    if (rank <= i_max%numtasks) {
+        base = ((i_max/numtasks)+rank) *rank;
+    } else {
+        base = ((i_max/numtasks)+i_max%numtasks) * rank;
+    }
+    return base;
+}
+
+
+double *init_arr(double *array, int length, int base){
     double *new_arr = malloc(sizeof (double) * length);
     for (int i = 0; i < length; i++){
         new_arr[i] = array[base+i];
@@ -62,6 +65,7 @@ void put_result(double *mother_arr, double *child_arr, int base, int length){
 }
 
 
+
 /*
  * Executes the entire simulation.
  *
@@ -74,12 +78,13 @@ void put_result(double *mother_arr, double *child_arr, int base, int length){
  * next_array: array of size i_max. You should fill this with t+1
  */
 double *simulate(const int i_max, const int t_max, double *old_array,
-        double *current_array, double *next_array)
+                 double *current_array, double *next_array)
 {
+    //printf("Test\n");
     // Variabelen initialiseren
-    int numtasks, rank, tag=1, length;
+    int numtasks, rank, tag=1, length, base;
     int next_add, prev_add, next_val, prev_val;
-    double *prev_l, *curr_l, *next_l;
+    double *prev_l, *curr_l, *next_l, *temp;
     MPI_Status stat;              
 
     MPI_Init(NULL, NULL);                   
@@ -90,59 +95,63 @@ double *simulate(const int i_max, const int t_max, double *old_array,
     // Elk proces moet zijn eigen geheugen krijgen
     // Verdeel de array en voeg padding toe
 
+    length = get_l(i_max, rank, numtasks);
+    base = get_b(i_max, rank, numtasks);
 
-    // Master proces die de buffers swapt
-    if (rank == 0) {
-        // every timestep, swap buffers
-    } else {
-        prev_l = init_arr(old_array, i_max, rank, numtasks);
-        curr_l = init_arr(current_array, i_max, rank, numtasks);
-        next_l = init_arr(next_array, i_max, rank, numtasks);
+    printf("Rank: %d, base %d, length %d\n", rank, base, length);
 
-        next_add = rank + 1;
-        prev_add = rank - 1;
-        // Taak voor elk proces definieren
+    prev_l = init_arr(old_array, length, base);
+    curr_l = init_arr(current_array, length, base); 
+    next_l = init_arr(next_array, length, base);
 
-        for (int i = 0; i < t_max; i++) {
+    next_add = rank + 1;
+    prev_add = rank - 1;
 
-            update_array(prev_l, curr_l, next_l, length);
-            if (rank == 1) {
-                next_l[0] = 0;
-            }
-            if (rank == numtasks){
-                next_l[length-1] = 0;
-            }
+    for (int i = 0; i < t_max; i++) {
 
-            // Communicatie na elke tijdstap
-            // Moet synchroon om de goede antwoorden te krijgen
-            // De oneven processen verezenden eerst
-            if (rank%2 == 0) {
-                next_val = next_l[length-1];
-                prev_val = next_l[1];
-                MPI_Send(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD);
-                MPI_Recv(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD, &stat);
-                next_l[0] = prev_val;
-
-                MPI_Send();
-                MPI_Recv();
-            } else {
-                MPI_Recv(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD, &stat);
-                MPI_Send();
-                MPI_Recv();
-                MPI_Send();
-            }
-
+        update_array(prev_l, curr_l, next_l, length);
+        if (rank == 0) {
+            next_l[0] = 0;
+            prev_add = numtasks - 1;
         }
-        put_result(current_array, curr_l, base, length);
-        free(prev_l);
-        free(curr_l);
-        free(next_l);
+        if (rank == numtasks-1){
+            next_l[length-1] = 0;
+            next_add = 0;
+        }
+
+        if (rank%2 == 0) {
+            next_val = next_l[length-2];
+            MPI_Send(&next_val, 1, MPI_INT, next_add, tag, MPI_COMM_WORLD);
+            MPI_Recv(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD, &stat);
+            next_l[0] = prev_val;
+
+            prev_val = next_l[1];
+            MPI_Send(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD);
+            MPI_Recv(&next_val, 1, MPI_INT, next_add, tag, MPI_COMM_WORLD, &stat);
+            next_l[length-1] = next_val;
+        } else {
+            MPI_Recv(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD, &stat);
+            next_l[0] = prev_val;
+            next_val = next_l[length-2];
+            MPI_Send(&next_val, 1, MPI_INT, next_add, tag, MPI_COMM_WORLD);
+
+            MPI_Recv(&next_val, 1, MPI_INT, next_add, tag, MPI_COMM_WORLD, &stat);
+            next_l[length-1] = next_val;
+            prev_val = next_l[1];
+            MPI_Send(&prev_val, 1, MPI_INT, prev_add, tag, MPI_COMM_WORLD);
+        }
+
+        temp = prev_l;
+        prev_l = curr_l;
+        curr_l = next_l;
+        next_l = temp;
     }
+    put_result(current_array, curr_l, base, length);
+    free(prev_l);
+    free(curr_l);
+    free(next_l);
 
-    
-    // De boel afsluiten
+
     MPI_Finalize();
-
-    /* You should return a pointer to the array with the final results. */
     return current_array;
 }
