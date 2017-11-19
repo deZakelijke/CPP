@@ -21,7 +21,7 @@ void load_message(node *node_p, char *message, int message_len);
 void print_buffer(node *node_p);
 
 // Check if a node is the end node in the point-to-point broadcast.
-int end_node(int l_i, int rank);
+int end_node(int l_i, int rank, int root);
 
 // Broadcast a message.
 int MYMPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root, 

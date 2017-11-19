@@ -1,7 +1,11 @@
 PROGNAME = assign2_3
 SRCFILES = ring_network_broadcast.c
 
-RUNARGS = 100
+PROCESSESPERNODE = 6
+NODES = 4
+
+PRUNARGS = -v -np $(NODES) -$(PROCESSESPERNODE) \
+		   -sge-script $$PRUN_ETC/prun-openmpi
 
 CC = mpicc
 
@@ -18,4 +22,9 @@ $(PROGNAME): $(OBJFILES)
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
+run: $(PROGNAME)
+	prun $(PRUNARGS) $(PROGNAME) 
+
+runlocal: $(PROGNAME)
+	mpirun -n $(PROCESSESPERNODE) $(PROGNAME)
 

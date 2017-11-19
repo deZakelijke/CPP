@@ -15,43 +15,37 @@ int MYMPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root,
     int prev_add = (rank - 1 + numtasks) % numtasks;
 
     if (rank == root) { 
-        printf("Root %d is sending message: %s to node %d and %d\n", root, (char*)buffer, next_add, prev_add);
+        printf("Node %d is sending message: %s \n", root, (char*)buffer);
         MPI_Send(buffer, count, MPI_CHAR, next_add, tag, MPI_COMM_WORLD);
         MPI_Send(buffer, count, MPI_CHAR, prev_add, tag, MPI_COMM_WORLD);
     } else {
-        if (end_node(numtasks, rank)) { 
-            printf("Ending node %d is waiting for broadcast.\n", rank);
+        if (end_node(numtasks, rank, root)) { 
             if (numtasks%2 == 0) {
-                printf("Single end node, will receive two broadcasts.\n");
                 MPI_Recv(buffer, count, MPI_CHAR, prev_add, tag, communicator, &stat);
                 MPI_Recv(buffer, count, MPI_CHAR, next_add, tag, communicator, &stat);
             } else {
-                if (numtasks / 2 < rank) { // if ccw
-                    printf("Ending node %d is receiving a singe broadcast from %d.\n", rank, next_add);
+                if (numtasks / 2 < (rank - root + numtasks) % numtasks) { // if ccw
                     MPI_Recv(buffer, count, MPI_CHAR, next_add, tag, communicator, &stat);
                 } else { // if cw
-                    printf("Ending node %d is receiving a singe broadcast from %d.\n", rank, prev_add);
                     MPI_Recv(buffer, count, MPI_CHAR, prev_add, tag, communicator, &stat);
                 }
             }
-        } else if (numtasks / 2 < rank) { // if ccw
-            printf("Node %d is waiting for broadcast from %d.\n", rank, next_add);
+        } else if (numtasks / 2 < (rank - root + numtasks) % numtasks) { // if ccw
             MPI_Recv(buffer, count, MPI_CHAR, next_add, tag, communicator, &stat);
-            printf("Node %d has received broadcast: %s.\n", rank, (char*)buffer);
             MPI_Send(buffer, count, MPI_CHAR, prev_add, tag, MPI_COMM_WORLD);
         } else  { // if cw
-            printf("Node %d is waiting for broadcast from %d.\n", rank, prev_add);
             MPI_Recv(buffer, count, MPI_CHAR, prev_add, tag, communicator, &stat);
-            printf("Node %d has received broadcast: %s.\n", rank, (char*)buffer);
             MPI_Send(buffer, count, MPI_CHAR, next_add, tag, MPI_COMM_WORLD);
         }
     }
-    printf("Node %d is done with broadcast.\n", rank);
     return 0;
 }
 
 node* node_init(int size, int rank){
     node *new_node = malloc(sizeof (node));
+    if (new_node == NULL) {
+        printf("Failed to init node.\n");
+    }
     new_node->size = size;
     new_node->node_id = rank;
     new_node->buffer = malloc(sizeof (char) * size);
@@ -81,15 +75,16 @@ void print_buffer(node *node_p){
 }
 
 
-int end_node(int l_i, int rank){
+int end_node(int l_i, int rank, int root){
     float l = (float)l_i;
     if (l / 2 == (float)rank) {
         return 1;
     }
-    if (l / 2 < rank && l / 2 > (rank - 1)) {
+    if (l / 2 < (rank-root+l_i) % l_i  && l / 2 > (rank-1-root+l_i) % l_i) {
         return 1;
     }
-    if (l / 2 > rank && l / 2 < (rank + 1)) {
+    if (l / 2 > (rank-root+l_i) % l_i  && l / 2 < (rank+1-root+l_i) % l_i) {
+    //if (l / 2 > rank && l / 2 < (rank + 1)) {
         return 1;
     }
     return 0;
@@ -97,8 +92,7 @@ int end_node(int l_i, int rank){
 
 
 int main(int argc, char *argv[]) {
-    // For now, only works with 0 as sender
-    int sender_id = 0;
+    int sender_id = 3;
     int numtasks, rank;
     int message_len = 5;
     char message[5] = {'H', 'e', 'l', 'l', 'o'};
@@ -109,8 +103,11 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+    if (sender_id >= numtasks) { 
+        sender_id = 0;
+    }
+
     node_p = node_init(message_len, rank);
-    printf("Process %d has started.\n", rank);
 
     if (rank == sender_id) {
         load_message(node_p, message, message_len);
@@ -120,7 +117,9 @@ int main(int argc, char *argv[]) {
         MYMPI_Bcast(node_p->buffer, node_p->size, MPI_CHAR, sender_id, MPI_COMM_WORLD);
     }
 
-    print_buffer(node_p);
+    if (rank != sender_id) {
+        print_buffer(node_p);
+    }
     node_free(node_p);
     MPI_Finalize();
     return 0;
