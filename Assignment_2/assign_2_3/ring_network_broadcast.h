@@ -1,4 +1,6 @@
-
+/*
+ * Made by Micha de Groot
+ */
 
 #include "mpi.h"
 

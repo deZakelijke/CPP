@@ -1,6 +1,7 @@
 PROGNAME = assign2_3
 SRCFILES = ring_network_broadcast.c
 
+RUNARGS = 3 7 Message    #sendeing node
 PROCESSESPERNODE = 6
 NODES = 4
 
@@ -23,8 +24,8 @@ $(PROGNAME): $(OBJFILES)
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 run: $(PROGNAME)
-	prun $(PRUNARGS) $(PROGNAME) 
+	prun $(PRUNARGS) $(PROGNAME) $(RUNARGS)
 
 runlocal: $(PROGNAME)
-	mpirun -n $(PROCESSESPERNODE) $(PROGNAME)
+	mpirun -n $(PROCESSESPERNODE) $(PROGNAME) $(RUNARGS)
 

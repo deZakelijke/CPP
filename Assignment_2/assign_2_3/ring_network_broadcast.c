@@ -1,3 +1,11 @@
+/*
+ *  Made by Micha de Groot
+ *  
+ *  This program creates a ring-network where each node can only message 
+ *  its neighbour. One node, specified by the user, will broadcast a 
+ *  message to all other nodes.
+ *
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -92,20 +100,43 @@ int end_node(int l_i, int rank, int root){
 
 
 int main(int argc, char *argv[]) {
-    int sender_id = 3;
+    int sender_id=0;
+    int message_len;
+    char def_mes[6] = {'H', 'e', 'l', 'l', 'o', '!'};
+    if (argc > 1) {
+        sender_id = atoi(argv[1]);
+        message_len = atoi(argv[2]);
+    } else {
+        printf("Format for input: <sending node> <message size> <message>\n");
+        printf("wrong input format, will revert to default settings:\n");
+        printf("Sending node:0, message size: 6, message: Hello!\n");
+        message_len = 6;
+    }
+
+    char message[message_len];
+    char empty[message_len];
+    if (argc > 3) {
+        for (int i = 0; i < message_len; i++) {
+            message[i] = argv[3][i];
+            empty[i] = '0';
+        }
+    } else {
+        for (int i = 0; i < message_len; i++) {
+            message[i] = def_mes[i];
+            empty[i] = '0';
+        }
+    }
+
     int numtasks, rank;
-    int message_len = 5;
-    char message[5] = {'H', 'e', 'l', 'l', 'o'};
-    char empty[5] = {'0', '0', '0', '0', '0'};
     node *node_p;
 
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
     if (sender_id >= numtasks) { 
         sender_id = 0;
     }
+
 
     node_p = node_init(message_len, rank);
 
