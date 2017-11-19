@@ -2,6 +2,10 @@
  * simulate.c
  *
  * Implement your (parallel) simulation here!
+ * 
+ * Made by Micha de Groot
+ *
+ * Wave simulation, distributed over several nodes.
  */
 
 #include <stdio.h>
