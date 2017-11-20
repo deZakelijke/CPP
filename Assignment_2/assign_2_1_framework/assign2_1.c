@@ -133,14 +133,17 @@ int main(int argc, char *argv[])
     ret = simulate(i_max, t_max, old, current, next);
 
     time = timer_end();
-    printf("Took %g seconds\n", time);
-    printf("Normalized: %g seconds\n", time / (1. * i_max * t_max));
+    if (ret != NULL) { 
+        printf("Took %g seconds\n", time);
+        printf("Normalized: %g seconds\n", time / (1. * i_max * t_max));
 
-    file_write_double_array("result.txt", ret, i_max);
+        file_write_double_array("result.txt", ret, i_max);
 
-    free(old);
-    free(current);
-    free(next);
+        free(old);
+        free(current);
+        free(next);
+
+    }
 
     return EXIT_SUCCESS;
 }

@@ -157,5 +157,8 @@ double *simulate(const int i_max, const int t_max, double *old_array,
 
 
     MPI_Finalize();
-    return current_array;
+    if (rank == 0) {
+        return current_array;
+    }
+    return NULL;
 }
